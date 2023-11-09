@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -11,12 +12,16 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/components/ui/use-toast";
+import { api } from "@/lib/axios";
 import { loginSchema } from "@/validators/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 type Input = z.infer<typeof loginSchema>;
 
 const Page = () => {
+  const router = useRouter();
+  const { toast } = useToast();
   const [isConfirm, setIsConfirm] = useState(false);
 
   const form = useForm<Input>({
@@ -27,11 +32,35 @@ const Page = () => {
     },
   });
 
-  const onSubmit = (data: Input) => {
-    if (isConfirm) alert("Ingatkan saya");
+  const onSubmit = async (data: Input) => {
+    if (isConfirm) {
+      localStorage.setItem("username", data.username);
+      localStorage.setItem("password", data.password);
+    }
 
-    alert(JSON.stringify(data, null, 4));
+    try {
+      await api.post("login", data);
+      router.push("/");
+    } catch (error) {
+      if (error instanceof Error) {
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: error.message,
+        });
+      }
+    }
   };
+
+  useEffect(() => {
+    const storedUsername = localStorage.getItem("username");
+    const storedPassword = localStorage.getItem("password");
+
+    if (storedUsername !== null && storedPassword !== null) {
+      form.setValue("username", storedUsername);
+      form.setValue("password", storedPassword);
+    }
+  }, []);
 
   return (
     <div className="w-full h-screen bg-primary-surface py-[105px] px-[61px]">
